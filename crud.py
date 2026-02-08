@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_, or_
 from datetime import datetime, timezone, date
+from typing import Optional
 from models import (
     User, Role, Permission, UserRole, RolePermission,
     ParentStudent, Student, MonthlyInvoice, Procedure,
@@ -8,10 +9,10 @@ from models import (
 )
 from security import get_password_hash
 
-def get_user_by_email(db: Session, email: str) -> User | None:
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
-def get_user_by_id(db: Session, user_id: int) -> User | None:
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     return db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
 
 def get_roles_and_permissions(db: Session, user_id: int) -> tuple[list[str], list[str]]:
@@ -68,7 +69,7 @@ def parent_get_invoices(db: Session, student_id: int):
     ).all()
     return rows
 
-def admin_mark_invoice_paid(db: Session, invoice_id: int, external_payment_id: str | None):
+def admin_mark_invoice_paid(db: Session, invoice_id: int, external_payment_id: Optional[str]):
     inv = db.execute(select(MonthlyInvoice).where(MonthlyInvoice.id == invoice_id)).scalar_one_or_none()
     if not inv:
         return None
@@ -93,7 +94,7 @@ def get_all_students(db: Session):
 def get_student_by_id(db: Session, student_id: int):
     return db.execute(select(Student).where(Student.id == student_id)).scalar_one_or_none()
 
-def create_student(db: Session, full_name: str, google_email: str | None, status: str = "VIGENTE"):
+def create_student(db: Session, full_name: str, google_email: Optional[str], status: str = "VIGENTE"):
     student = Student(
         full_name=full_name,
         google_email=google_email,
@@ -104,8 +105,8 @@ def create_student(db: Session, full_name: str, google_email: str | None, status
     db.refresh(student)
     return student
 
-def update_student(db: Session, student_id: int, full_name: str | None = None,
-                  google_email: str | None = None, status: str | None = None):
+def update_student(db: Session, student_id: int, full_name: Optional[str] = None,
+                  google_email: Optional[str] = None, status: Optional[str] = None):
     student = get_student_by_id(db, student_id)
     if not student:
         return None
@@ -162,7 +163,7 @@ def get_procedure_by_id(db: Session, procedure_id: int):
     return db.execute(select(Procedure).where(Procedure.id == procedure_id)).scalar_one_or_none()
 
 def create_procedure(db: Session, student_id: int, procedure_type: str,
-                    description: str | None, requested_by: int):
+                    description: Optional[str], requested_by: int):
     procedure = Procedure(
         student_id=student_id,
         procedure_type=procedure_type,
@@ -175,9 +176,9 @@ def create_procedure(db: Session, student_id: int, procedure_type: str,
     db.refresh(procedure)
     return procedure
 
-def update_procedure(db: Session, procedure_id: int, status: str | None = None,
-                    notes: str | None = None, approved_by: int | None = None,
-                    assigned_to: int | None = None):
+def update_procedure(db: Session, procedure_id: int, status: Optional[str] = None,
+                    notes: Optional[str] = None, approved_by: Optional[int] = None,
+                    assigned_to: Optional[int] = None):
     procedure = get_procedure_by_id(db, procedure_id)
     if not procedure:
         return None
@@ -233,8 +234,8 @@ def create_invoice(db: Session, student_id: int, period, amount: float, payment_
     db.refresh(invoice)
     return invoice
 
-def update_invoice(db: Session, invoice_id: int, status: str | None = None,
-                  payment_url: str | None = None):
+def update_invoice(db: Session, invoice_id: int, status: Optional[str] = None,
+                  payment_url: Optional[str] = None):
     invoice = get_invoice_by_id(db, invoice_id)
     if not invoice:
         return None
@@ -322,8 +323,8 @@ def get_all_programs(db: Session):
 def get_program_by_id(db: Session, program_id: int):
     return db.execute(select(Program).where(Program.id == program_id)).scalar_one_or_none()
 
-def create_program(db: Session, name: str, description: str | None = None,
-                  google_classroom_id: str | None = None, google_classroom_link: str | None = None):
+def create_program(db: Session, name: str, description: Optional[str] = None,
+                  google_classroom_id: Optional[str] = None, google_classroom_link: Optional[str] = None):
     program = Program(
         name=name,
         description=description,
@@ -335,9 +336,9 @@ def create_program(db: Session, name: str, description: str | None = None,
     db.refresh(program)
     return program
 
-def update_program(db: Session, program_id: int, name: str | None = None,
-                  description: str | None = None, google_classroom_id: str | None = None,
-                  google_classroom_link: str | None = None, is_active: bool | None = None):
+def update_program(db: Session, program_id: int, name: Optional[str] = None,
+                  description: Optional[str] = None, google_classroom_id: Optional[str] = None,
+                  google_classroom_link: Optional[str] = None, is_active: Optional[bool] = None):
     program = get_program_by_id(db, program_id)
     if not program:
         return None
@@ -406,9 +407,9 @@ def create_user(db: Session, email: str, password: str, full_name: str, role_nam
 
     return user
 
-def update_user(db: Session, user_id: int, email: str | None = None,
-               password: str | None = None, full_name: str | None = None,
-               is_active: bool | None = None, role_names: list[str] | None = None):
+def update_user(db: Session, user_id: int, email: Optional[str] = None,
+               password: Optional[str] = None, full_name: Optional[str] = None,
+               is_active: Optional[bool] = None, role_names: Optional[list[str]] = None):
     user = get_user_by_id(db, user_id)
     if not user:
         return None
@@ -455,9 +456,9 @@ def get_all_roles(db: Session):
 
 
 # ========== Audit Log ==========
-def create_audit_log(db: Session, user_id: int | None, action: str, entity_type: str,
-                    entity_id: int | None = None, details: str | None = None,
-                    ip_address: str | None = None):
+def create_audit_log(db: Session, user_id: Optional[int], action: str, entity_type: str,
+                    entity_id: Optional[int] = None, details: Optional[str] = None,
+                    ip_address: Optional[str] = None):
     log = AuditLog(
         user_id=user_id,
         action=action,
